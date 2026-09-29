@@ -7,6 +7,7 @@ An F1TENTH (Roboracer) car and racetrack in **NVIDIA Isaac Sim 4.5**, with
 
 The car and track geometry come from the [AutoDRIVE Simulator](https://github.com/AutoDRIVE-Ecosystem/AutoDRIVE-Simulator) (Unity build). The converted USD assets are included in `usd/`; `scripts/extract_unity.py` shows how they were extracted.
 
+![screenshot](media/cover.png)
 ![screenshot](media/gifs.gif)
 ![screenshot](media/gif1er.gif)
 ![screenshot](media/gif2l.gif)

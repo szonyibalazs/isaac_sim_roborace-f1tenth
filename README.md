@@ -11,6 +11,9 @@ The car and track geometry come from the [AutoDRIVE Simulator](https://github.co
 ![screenshot](media/gifs.gif)
 ![screenshot](media/gif1er.gif)
 ![screenshot](media/gif2l.gif)
+![screenshot](media/eight.gif)
+![screenshot](media/circle.gif)
+
 
 ## 1. Prerequisites
 

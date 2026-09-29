@@ -1,0 +1,1 @@
+UnityPy>=1.25   # only needed for scripts/extract_unity.py (scipy, numpy, torch, rsl_rl already ship with Isaac Lab)

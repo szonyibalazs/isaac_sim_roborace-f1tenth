@@ -1,0 +1,6 @@
+# Base conda env only. Isaac Sim / Isaac Lab are pip/git installs on top: see README "1. Environment".
+name: env_isaaclab
+channels: [conda-forge]
+dependencies:
+  - python=3.10
+  - pip

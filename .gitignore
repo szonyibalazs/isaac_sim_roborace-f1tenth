@@ -6,3 +6,4 @@ assets/raw/*/meshes/
 # training output
 rl/logs/
 *.log
+rl_drift/logs/

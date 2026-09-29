@@ -94,6 +94,15 @@ python rl/bench.py --num_envs 1024 --headless                         # throughp
 
 Measured env steps/s (random actions, 6 GB GPU): 64 → 2.6k, 256 → 5.1k, 1024 → 6.0k, 2048 → 10.9k, 4096 → 11.6k (~4.3 GB VRAM; keep other GPU jobs off).
 
+## 5. Drift policy (no track)
+
+A separate RL task on a flat ground plane: learn to hold a sustained drift around a point (`circle`) or along a figure-eight (`eight`). Independent of the track environment above; see [`rl_drift/README.md`](rl_drift/README.md).
+```bash
+source scripts/env_isaac.sh
+python rl_drift/train.py --task circle --num_envs 512 --headless --max_iterations 1500
+python rl_drift/play.py  --task circle --checkpoint rl_drift/logs/circle/<run>/model_N.pt --num_envs 16
+```
+
 ## Layout
 ```
 scripts/  create_env.sh  env_isaac.sh  regenerate_assets.sh  extract_unity.py  build_track_usd.py  build_car_usd.py

@@ -1,7 +1,7 @@
-"""Build usd/track.usda from assets/raw/track (Unity -> Isaac).
+"""Build usd/tracks/<slug>.usda (+ rl/tracks/<slug>/meta.json) from the raw Unity extraction (Unity -> Isaac).
 Convention: (x,y,z)_unity -> (x, z, y) (Y-up LH -> Z-up RH), face winding reversed.
 Unity +Z (forward) -> Isaac +Y; Unity +X -> Isaac +X. Same convention must be used for the car.
-Usage: build_track_usd.py [--track "SRL 2025 ICRA"]  (name of Infrastructure/<name> Track node)
+Usage: build_track_usd.py [--track icra25]  (slug from assets/tracks.json, or a raw Unity name of an Infrastructure/<name> Track node)
 """
 import argparse, json, os
 import numpy as np
@@ -10,11 +10,17 @@ app = SimulationApp({'headless': True})
 from pxr import Usd, UsdGeom, UsdLux, UsdShade, UsdPhysics, Sdf, Gf, Vt
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW = f"{ROOT}/assets/raw/track"
 ap = argparse.ArgumentParser()
-ap.add_argument("--track", default="SRL 2025 ICRA")
-ap.add_argument("--out", default=f"{ROOT}/usd/track.usda")
+ap.add_argument("--track", default="icra25")
+ap.add_argument("--out", default=None, help="default usd/tracks/<slug>.usda")
 a = ap.parse_args()
+REG = json.load(open(f"{ROOT}/assets/tracks.json"))
+REG.pop("_doc", None)
+slug = a.track if a.track in REG else None
+uname, RAW = (REG[slug]["unity"], f"{ROOT}/{REG[slug]['raw']}") if slug else (a.track, f"{ROOT}/assets/raw/track")
+slug = slug or a.track.lower().replace(" ", "_")
+a.out = a.out or f"{ROOT}/usd/tracks/{slug}.usda"
+a.track = uname
 
 nodes = {n["path"]: n for n in json.load(open(f"{RAW}/hierarchy.json"))["nodes"]}
 tn = nodes[f"Infrastructure/{a.track} Track"]
@@ -74,13 +80,14 @@ def make_mat(name, color, tex=None):
         s.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*color))
     m.CreateSurfaceOutput().ConnectToSource(s.CreateOutput("surface", Sdf.ValueTypeNames.Token))
     return m
-tex = "../assets/raw/track/textures/metal_0041_color_4k.png"
+tex = os.path.relpath(f"{ROOT}/assets/raw/track/textures/metal_0041_color_4k.png", os.path.dirname(a.out))
 have_tex = os.path.exists(f"{ROOT}/assets/raw/track/textures/metal_0041_color_4k.png")
 vis = {"Black_Fabric": make_mat("Black_Fabric", (0.02, 0.02, 0.02)),  # Kd=0 in Unity -> near black, no texture
        "Shiny_Aluminium": make_mat("Shiny_Aluminium", (0.7059, 0.702, 0.7059), tex if have_tex else None)}
 
 mesh = UsdGeom.Mesh.Define(stage, "/World/Track/mesh")
 mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(P.astype(np.float32)))
+mesh.CreateExtentAttr(Vt.Vec3fArray([Gf.Vec3f(*map(float, P.min(0))), Gf.Vec3f(*map(float, P.max(0)))]))
 mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(tri), 3, np.int32)))
 mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(tri.reshape(-1).astype(np.int32)))
 mesh.CreateSubdivisionSchemeAttr("none")
@@ -121,6 +128,10 @@ UsdGeom.Xformable(d).AddRotateXYZOp().Set(Gf.Vec3f(-50, 0, 30))
 
 os.makedirs(os.path.dirname(a.out), exist_ok=True)
 stage.Export(a.out)
+meta = {"slug": slug, "unity": uname, "spawn_xy": [float(x), float(z)], "spawn_yaw_deg": float(90 - yaw_u),
+        "bbox_min": P.min(0).tolist(), "bbox_max": P.max(0).tolist()}
+os.makedirs(f"{ROOT}/rl/tracks/{slug}", exist_ok=True)
+json.dump(meta, open(f"{ROOT}/rl/tracks/{slug}/meta.json", "w"), indent=1)
 print("wrote", a.out, "pts", len(P), "tris", len(tri), "bbox min", P.min(0), "max", P.max(0), "spawn", (x, z, y), "heading_deg", 90 - yaw_u)
 
 app.close()

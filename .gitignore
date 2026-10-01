@@ -2,8 +2,9 @@ __pycache__/
 *.pyc
 .vscode/
 # raw Unity mesh dump (regenerable with scripts/extract_unity.py); hierarchy.json + textures stay tracked
-assets/raw/*/meshes/
+assets/raw/**/meshes/
 # training output
 rl/logs/
 *.log
 rl_drift/logs/
+assets/raw/builds/*/track/textures/

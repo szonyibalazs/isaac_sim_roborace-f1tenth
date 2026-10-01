@@ -107,7 +107,7 @@ def Xform "World"
             def Shader "tex"
             {
                 uniform token info:id = "UsdUVTexture"
-                asset inputs:file = @../assets/raw/track/textures/metal_0041_color_4k.png@
+                asset inputs:file = @../../assets/raw/track/textures/metal_0041_color_4k.png@
                 float4 inputs:scale = (0.7059, 0.702, 0.7059, 1)
                 token inputs:sourceColorSpace = "sRGB"
                 float2 inputs:st.connect = </World/Looks/Shiny_Aluminium/st.outputs:result>

@@ -139,6 +139,7 @@ def add_meshes(link, origin):
         m = UsdGeom.Mesh.Define(stage, f"/f1tenth/{link}/visual_{prim_name}")
         up, inv = np.unique(np.round(np.array(pts) - origin, 6), axis=0, return_inverse=True)  # weld verts
         m.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(up.astype(np.float32)))
+        m.CreateExtentAttr(Vt.Vec3fArray([Gf.Vec3f(*map(float, up.min(0))), Gf.Vec3f(*map(float, up.max(0)))]))  # else RTX warns: bbox +-FLT_MAX
         m.CreateFaceVertexCountsAttr(Vt.IntArray([3] * (len(ix) // 3)))
         m.CreateFaceVertexIndicesAttr(Vt.IntArray(inv.reshape(-1)[np.array(ix)].tolist()))
         m.CreateSubdivisionSchemeAttr("none")

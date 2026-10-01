@@ -2,9 +2,12 @@
 Run: source scripts/env_isaac.sh && python scripts/run_sim.py [--headless]"""
 import argparse, math, os
 ap = argparse.ArgumentParser()
+ap.add_argument("--track", default="icra25", help="usd/tracks/<name>.usda (see ls usd/tracks)")
 ap.add_argument("--headless", action="store_true")
 ap.add_argument("--seconds", type=float, default=0, help="stop after N s wall time (0 = run forever)")
 args = ap.parse_args()
+if not os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "usd", "tracks", args.track + ".usda")):
+    raise SystemExit(f"unknown track {args.track}; see usd/tracks/")
 
 from isaacsim import SimulationApp
 app = SimulationApp({"headless": args.headless})
@@ -20,12 +23,12 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 L, T, R_W, MAX_STEER = 0.33, 0.236, 0.059, math.radians(22.9)
 CAR = "/World/f1tenth"; BASE = CAR + "/base_link"
 
-ctx = omni.usd.get_context(); ctx.open_stage(os.path.join(ROOT, "usd/track.usda")); stage = ctx.get_stage()
+ctx = omni.usd.get_context(); ctx.open_stage(os.path.join(ROOT, f"usd/tracks/{args.track}.usda")); stage = ctx.get_stage()
 for _ in range(10): app.update()
 if not any(p.IsA(UsdPhysics.Scene) for p in stage.Traverse()):
     sc = UsdPhysics.Scene.Define(stage, "/World/PhysicsScene"); sc.CreateGravityDirectionAttr(Gf.Vec3f(0, 0, -1)); sc.CreateGravityMagnitudeAttr(9.81)
     px = PhysxSchema.PhysxSceneAPI.Apply(sc.GetPrim()); px.CreateEnableGPUDynamicsAttr(False); px.CreateBroadphaseTypeAttr("MBP")  # CPU physics (GPU dynamics also fights other jobs for 6 GB VRAM)
-# track.usda's Ground cube (200x200x0.1) makes the car sink/stick in PhysX; a 100x100x1 slab at the same top height works
+# the track usda's Ground cube (200x200x0.1) makes the car sink/stick in PhysX; a 100x100x1 slab at the same top height works
 stage.GetPrimAtPath("/World/Ground").SetActive(False)
 g = UsdGeom.Cube.Define(stage, "/World/GroundSlab"); g.CreateSizeAttr(1.0)
 g.AddTranslateOp().Set(Gf.Vec3d(0, 0, -0.5)); g.AddScaleOp().Set(Gf.Vec3f(100, 100, 1))

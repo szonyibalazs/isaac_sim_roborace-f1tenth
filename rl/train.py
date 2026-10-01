@@ -3,14 +3,18 @@ import argparse, os, sys, time
 from datetime import datetime
 
 from isaaclab.app import AppLauncher
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from track_util import add_track_arg, check_track
 
 p = argparse.ArgumentParser()
 p.add_argument("--num_envs", type=int, default=256)
 p.add_argument("--max_iterations", type=int, default=None)
 p.add_argument("--checkpoint", type=str, default=None, help="resume from this model_*.pt")
 p.add_argument("--seed", type=int, default=42)
+add_track_arg(p)
 AppLauncher.add_app_launcher_args(p)  # adds --headless, --device ...
 args = p.parse_args()
+check_track(args.track)
 app = AppLauncher(args).app
 
 import torch
@@ -23,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from f1tenth_env import F1TenthEnv, F1TenthEnvCfg
 from rsl_cfg import F1TenthPPORunnerCfg
 
-env_cfg = F1TenthEnvCfg(); env_cfg.scene.num_envs = args.num_envs; env_cfg.seed = args.seed
+env_cfg = F1TenthEnvCfg(); env_cfg.track = args.track; env_cfg.scene.num_envs = args.num_envs; env_cfg.seed = args.seed
 agent_cfg = handle_deprecated_rsl_rl_cfg(F1TenthPPORunnerCfg(), md.version('rsl-rl-lib')); agent_cfg.seed = args.seed
 if args.max_iterations: agent_cfg.max_iterations = args.max_iterations
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))

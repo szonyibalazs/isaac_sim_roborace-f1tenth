@@ -2,6 +2,7 @@
 Output (Unity coords kept RAW: left-handed, Y-up, meters; OBJ triangle winding untouched):
   assets/raw/{car,track}/meshes/*.obj  (+ .mtl), textures/*.png, hierarchy.json
 Run: python scripts/extract_unity.py --data <AutoDRIVE simulator>/Data   (or env AUTODRIVE_DATA)
+  [--out-dir assets/raw/builds/<name>] [--only track]  -> several builds side by side
 """
 import argparse, json, os, re, sys
 import numpy as np, UnityPy
@@ -9,11 +10,13 @@ from UnityPy.helpers.MeshHelper import MeshHandler
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--data", default=os.environ.get("AUTODRIVE_DATA"), help="AutoDRIVE simulator 'Data' dir (contains level0)")
+ap.add_argument("--out-dir", default=None, help="output dir (default assets/raw); e.g. assets/raw/builds/<name> for extra builds")
+ap.add_argument("--only", choices=["car", "track"], help="extract only this root (default: both)")
 a = ap.parse_args()
 if not a.data or not os.path.exists(os.path.join(a.data, "level0")):
     sys.exit("pass --data <path to autodrive_simulator/Data> (or set AUTODRIVE_DATA)")
 D = os.path.join(a.data, "")
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "raw")
+OUT = a.out_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "raw")
 env = UnityPy.load(D + "level0", D + "sharedassets0.assets")
 lv = [v for k, v in env.files.items() if k.endswith("level0")][0]
 safe = lambda s: re.sub(r"[^A-Za-z0-9_.-]+", "_", s)[:120]
@@ -124,6 +127,7 @@ def walk(t, d, parent, nodes, path=""):
     for ch in t.m_Children: walk(ch.deref().read(), d, p, nodes, p)
 
 for key, root in ROOTS.items():
+    if a.only and key != a.only: continue
     d = os.path.join(OUT, key); nodes = []; tex_done.clear(); mat_info.clear()
     for t in T.values():
         if t.m_GameObject.deref().read().m_Name == root and not (t.m_Father and t.m_Father.path_id):

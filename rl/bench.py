@@ -1,12 +1,14 @@
 """Scaling: python rl/bench.py --num_envs 1024 --headless  -> env steps/s (random actions)."""
 import argparse, os, sys, time
 from isaaclab.app import AppLauncher
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from track_util import add_track_arg, check_track
 p = argparse.ArgumentParser(); p.add_argument("--num_envs", type=int, default=256); p.add_argument("--steps", type=int, default=200)
-AppLauncher.add_app_launcher_args(p); a = p.parse_args(); app = AppLauncher(a).app
+add_track_arg(p); AppLauncher.add_app_launcher_args(p); a = p.parse_args(); check_track(a.track); app = AppLauncher(a).app
 import torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from f1tenth_env import F1TenthEnv, F1TenthEnvCfg
-cfg = F1TenthEnvCfg(); cfg.scene.num_envs = a.num_envs
+cfg = F1TenthEnvCfg(); cfg.track = a.track; cfg.scene.num_envs = a.num_envs
 env = F1TenthEnv(cfg); env.reset()
 for i in range(a.steps + 20):
     if i == 20: torch.cuda.synchronize(); t = time.time()

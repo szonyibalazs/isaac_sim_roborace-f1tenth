@@ -1,0 +1,10 @@
+{
+  "_doc": "slug -> Unity Track node name in Infrastructure/<unity> Track, and the raw extraction it comes from (see scripts/regenerate_assets.sh). Geometry-identical tracks of the other builds (iros24, cdc24, practice) are not repeated.",
+  "icra25":  {"unity": "SRL 2025 ICRA",   "raw": "assets/raw/track"},
+  "cdctf25": {"unity": "SRL 2025 CDC-TF", "raw": "assets/raw/builds/cdctf25/track"},
+  "iros24":  {"unity": "SRL 2024 IROS",   "raw": "assets/raw/track"},
+  "cdc24":   {"unity": "SRL 2024 CDC",    "raw": "assets/raw/track"},
+  "berlin":  {"unity": "Berlin",          "raw": "assets/raw/track"},
+  "porto":   {"unity": "Porto",           "raw": "assets/raw/track"},
+  "berlin26": {"unity": "Berlin",         "raw": "assets/raw/builds/explore26/track"}
+}

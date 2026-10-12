@@ -8,6 +8,7 @@ from __future__ import annotations
 import torch
 from tensordict import TensorDict
 
+import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation
 from isaaclab.sensors import RayCaster
 from isaaclab.utils import configclass
@@ -32,6 +33,9 @@ class OvertakeEnv(F1TenthEnv):
         super()._setup_scene()
         c = self.cfg
         self.opp = Articulation(c.robot_cfg.replace(prim_path="/World/envs/env_.*/Opp"))
+        for i in range(self.scene.cfg.num_envs):  # Opp is spawned after cloning: give its tyres the same material per env
+            for w in ("rl", "rr", "fl", "fr"):
+                sim_utils.bind_physics_material(f"/World/envs/env_{i}/Opp/wheel_{w}/collision", self._tire_mat)
         self.scene.articulations["opp"] = self.opp
         self.opp_lidar = RayCaster(c.lidar_cfg.replace(prim_path="/World/envs/env_.*/Opp/base_link"))
         self.scene.sensors["opp_lidar"] = self.opp_lidar
@@ -40,6 +44,7 @@ class OvertakeEnv(F1TenthEnv):
         super().__init__(cfg, render_mode, **kw)
         dev, n = self.device, self.num_envs
         self.opp_actions = torch.zeros(n, 2, device=dev)
+        self.opp_cmd = torch.zeros(n, 2, device=dev)
         self.opp_idx = torch.zeros(n, dtype=torch.long, device=dev)
         self.gap = torch.zeros(n, device=dev)  # ego - opp along the centerline [m], signed
         self.passed = torch.zeros(n, dtype=torch.bool, device=dev)
@@ -47,12 +52,12 @@ class OvertakeEnv(F1TenthEnv):
     # ---- opponent driving ----------------------------------------------------------------------
     def _pre_physics_step(self, actions):
         super()._pre_physics_step(actions)
-        r, c = self.opp.data, self.cfg
-        obs = torch.cat([self._lidar_dist(self.opp_lidar) / c.lidar_max, r.root_lin_vel_b[:, :2] / c.max_speed,
-                         r.root_ang_vel_b[:, 2:3] / 5.0, self.opp_actions], -1)
+        c = self.cfg
+        obs = torch.cat([self._lidar_dist(self.opp_lidar) / c.lidar_max, self.opp_cmd / self._cmd_scale], -1)
         with torch.no_grad():
             self.opp_actions = self.opp_policy(TensorDict({"policy": obs}, batch_size=[self.num_envs])).clamp(-1, 1)
-        self._opp_steer, self._opp_wheel = self._targets(self.opp_actions)
+        self.opp_cmd = self._integrate(self.opp_actions, self.opp_cmd)
+        self._opp_steer, self._opp_wheel = self._targets(self.opp_cmd)
         self._opp_wheel = self._opp_wheel * c.opp_speed_scale
 
     def _apply_action(self):
@@ -112,3 +117,4 @@ class OvertakeEnv(F1TenthEnv):
         self.gap[env_ids] = -(idx - self.cl_idx[env_ids]).float() * self.cl_ds
         self.passed[env_ids] = False
         self.opp_actions[env_ids] = 0.0
+        self.opp_cmd[env_ids] = 0.0

@@ -115,16 +115,18 @@ python rl/play.py  --checkpoint rl/logs/<date>/model_299.pt
 python rl/bench.py --num_envs 1024 --headless                         # throughput
 ```
 `play.py` prints the lap time of car 0. On a 6 GB GPU use `--headless` for training; the PhysX GPU buffers in `F1TenthEnvCfg.sim` are sized for that.
-- **Observation** (113): 108 normalised lidar rays (270°, 10 m), body-frame `vx, vy, yaw-rate`, previous action.
+- **Observation** (110): 108 normalised lidar rays (270°, 10 m) and the policy's own commanded steer/speed. No odometry/velocity (the real car's `/odom` has no usable vy).
+- **Domain randomization** (`F1TenthEnvCfg.randomize`, per env at every reset): 1-4 step command delay + first-order steer/speed lag, speed/steer gain and steer trim, tyre friction (effective mu ~0.3-0.9), mass, lidar noise/bias/yaw error/dropouts/glitches and a 1-step late scan. Ranges are in the cfg; delay/lag are based on a real-car rosbag (~200 ms speed response). Not randomized: centre of mass, track width.
 - **Action**: `[steer, speed]` in [-1, 1] → ±0.4 rad Ackermann steering, 0–7.2 m/s target speed (`max_speed`).
 - **Reward**: 10 per metre of progress along the track centreline, −0.1 per step (rewards fast laps), −0.05·steering-rate, −10 on crash. An episode ends when the lidar minimum < 0.12 m, on flip, after 2 s below 0.1 m/s, or after 30 s. Edit `rl/f1tenth_env.py` to change it; PPO settings are in `rl/rsl_cfg.py`.
 - All envs share one track mesh (cars do not collide with each other), which keeps VRAM low and makes the track size irrelevant for memory (2048 envs on the biggest track `berlin26`: ~4.1 GB).
+- **Friction**: `F1TenthEnvCfg.mu_tire` × `mu_floor` (ground plane and track mesh, multiply combine) = effective mu, default 1.0 × 0.75. Edit in `rl/f1tenth_env.py`; the opponent car in `overtake.py` uses the same tyre material.
 - A checkpoint is not tied to a track (same observation), so `play.py --track X --checkpoint ...` also tests generalisation.
 
 Measured env steps/s (random actions, 6 GB GPU): 64 → 2.6k, 256 → 5.1k, 1024 → 6.0k, 2048 → 10.9k, 4096 → 11.6k (~4.3 GB VRAM; keep other GPU jobs off).
 
 ## 6. Overtaking
-`rl/overtake.py` trains a policy from scratch to overtake slower cars. Every env holds the learner plus one opponent driven by a frozen, pre-trained lap policy with its throttle scaled by `--opp_speed_scale` (default 0.5). The opponent appears in the learner's lidar as a circle (radius 0.15 m) merged with the wall distances, so the observation is the same 113 values as in section 5. Extra reward: +5 for passing the opponent along the centreline.
+`rl/overtake.py` trains a policy from scratch to overtake slower cars. Every env holds the learner plus one opponent driven by a frozen, pre-trained lap policy with its throttle scaled by `--opp_speed_scale` (default 0.5). The opponent appears in the learner's lidar as a circle (radius 0.15 m) merged with the wall distances, so the observation is the same 110 values as in section 5. Extra reward: +5 for passing the opponent along the centreline.
 ```bash
 python rl/overtake.py --opp_checkpoint rl/logs/<run>/model_250.pt --track porto --num_envs 64 --headless --max_iterations 1000
 python -u rl/overtake.py --play --opp_checkpoint rl/logs/<run>/model_250.pt --checkpoint rl/logs/overtake/<run>/model_N.pt --num_envs 1   # prints overtakes and lap times
@@ -141,7 +143,7 @@ python rl_drift/play.py  --task circle --checkpoint rl_drift/logs/circle/<run>/m
 ```
 
 ## 8. Running a policy on the real car (ROS2)
-`deploy/` has plain scripts (ROS2 Humble + numpy on the robot, no torch/Isaac). Export a checkpoint once on the training PC, then run on the car; both publish `AckermannDriveStamped` on `/drive` at 30 Hz and stop the car when `/odom` or the sensor input is older than 0.3 s.
+`deploy/` has plain scripts (ROS2 Humble + numpy on the robot, no torch/Isaac). Export a checkpoint once on the training PC, then run on the car; both publish `AckermannDriveStamped` on `/drive` at 30 Hz and stop the car when the sensor input is older than 0.3 s.
 ```bash
 python deploy/lap_ros2.py export rl/logs/<run>/model_250.pt deploy/lap.npz
 python3 deploy/lap_ros2.py run deploy/lap.npz --dry-run                  # prints the commands only
@@ -149,7 +151,7 @@ python3 deploy/lap_ros2.py run deploy/lap.npz --speed-scale 0.4          # start
 python deploy/drift_ros2.py export rl_drift/logs/eight/<run>/model_N.pt deploy/eight.npz     # drift policy, see rl_drift/README.md
 python3 deploy/drift_ros2.py run deploy/eight.npz --task eight --dry-run
 ```
-The lap policy needs the scan resampled to the 108 training rays (270°, 10 m); `lap_ros2.py` does that. Sim and real differ in dynamics (no latency, noise or friction randomisation in training) and in lidar mounting (0.113 m in sim), so test at low speed first.
+The lap policy needs the scan resampled to the 108 training rays (270°, 10 m); `lap_ros2.py` does that. Sim and real differ in lidar mounting (0.113 m in sim), so test at low speed first.
 
 ## Layout
 ```
